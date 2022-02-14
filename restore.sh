@@ -1,7 +1,7 @@
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
-# wget -qO - https://raw.githubusercontent.com/getlynx/LynxBootstrap/master/restore.sh | bash
+# wget -qO - https://raw.githubusercontent.com/getlynx/LynxBootstrap/master/restore.sh | bash -s v7.0-mainnet
 #
 
 [ -z "$1" ] && tag="v7.0-mainnet" || tag="$1" # v7.0-mainnet is default.
