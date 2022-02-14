@@ -20,7 +20,7 @@ while IFS= read -r line; do # Loop over each file and check the hashes match
 	if [ "$(sha256sum "$file" | awk '{print $1}')" = "$hash" ]; then
 		echo "LynxCI: $file hash match $hash"
 	else # Hash doesn't match
-		rm -rf $file
+		rm -rf "$file"
 		wget -q "$release$file"
 		if [ "$(sha256sum "$file" | awk '{print $1}')" = "$hash" ]; then
 			echo "LynxCI: Sanity check - $file hash match $hash"
@@ -30,5 +30,6 @@ while IFS= read -r line; do # Loop over each file and check the hashes match
 		fi
 	fi
 done < manifest.txt
-cat *blocks.tar.gz.* | gunzip | (rm -rf /tmp/blocks && mkdir -p /tmp/blocks && cd /tmp/blocks && tar xf -)
-cat *chainstate.tar.gz.* | gunzip | (rm -rf /tmp/chainstate && mkdir -p /tmp/chainstate && cd /tmp/chainstate && tar xf -)
+cat ./*blocks.tar.gz.* | gunzip | (rm -rf /tmp/blocks && mkdir -p /tmp/blocks && cd /tmp/blocks && tar xf -)
+cat ./*chainstate.tar.gz.* | gunzip | (rm -rf /tmp/chainstate && mkdir -p /tmp/chainstate && cd /tmp/chainstate && tar xf -)
+rm -rf manifest.txt && rm -rf ./*blocks.tar* && rm -rf ./*chainstate.tar*
