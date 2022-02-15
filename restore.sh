@@ -19,6 +19,7 @@ while IFS= read -r line; do # Loop over each file and check the hashes match
 	fi
 	if [ "$(sha256sum "$file" | awk '{print $1}')" = "$hash" ]; then
 		#echo "LynxCI: $file hash match $hash"
+		sleep 1
 	else # Hash doesn't match
 		rm -rf "$file"
 		wget -q "$release$file"
