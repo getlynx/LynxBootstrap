@@ -24,3 +24,5 @@ else
 fi
 
 sha256sum "$currentDate"-* > manifest.txt
+
+cd && ls -lh
