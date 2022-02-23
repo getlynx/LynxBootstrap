@@ -1,7 +1,7 @@
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
-# wget -qO - https://raw.githubusercontent.com/getlynx/LynxBootstrap/master/backup.sh | bash
+# wget -qO - https://backup.getlynx.io/ | bash
 #
 
 [ $EUID -ne 0 ] && echo "This script must be run from the root account. Exiting." && exit
