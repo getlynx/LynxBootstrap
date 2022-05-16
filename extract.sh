@@ -1,7 +1,7 @@
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
-# wget -qO - https://extract.getlynx.io/
+# wget -qO - https://extract.getlynx.io/ | bash
 #
 # [with tag argument]
 # wget -qO - https://extract.getlynx.io/ | bash -s v8.0-mainnet
