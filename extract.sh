@@ -14,7 +14,6 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 release="https://github.com/getlynx/LynxBootstrap/releases/download/$tag/" # Release version
 
 cd /home/lynx/.lynx || exit
-rm -rf ./*bootstrap.tar.gz*
 rm -rf manifest.txt # If previously run, purge old file
 wget -q "$release"manifest.txt # Pull down the manifest
 sed -i 's/  /:/' manifest.txt # Clean it up for easy usage
