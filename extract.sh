@@ -6,7 +6,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # [with tag argument]
 # wget -qO - https://extract.getlynx.io/ | bash -s v8.0-mainnet
 #
-# https://docs.getlynx.io/lynx-administration/snapshots
+# https://docs.getlynx.io/lynx-administration/bootstraps
 #
 
 [ -z "$1" ] && tag="v8.0-mainnet" || tag="$1" # vX.0-mainnet is default.
