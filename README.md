@@ -1,5 +1,5 @@
 # Lynx Bootstrap
-For faster sync the mainnet and testnet boostrap files are published from the Lynx Development Team here.
+For full details on the usage of the bootstrap and snapshot creation scripts, please review the official [documentation](https://docs.getlynx.io/lynx-administration/bootstraps).
 
 ## mainnet
 ```
