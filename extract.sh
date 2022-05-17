@@ -15,6 +15,7 @@ release="https://github.com/getlynx/LynxBootstrap/releases/download/$tag/" # Rel
 
 cd /home/lynx/.lynx || exit
 rm -rf manifest.txt # If previously run, purge old file
+rm -rf bootstrap.dat # If previously run, purge old file
 wget -q "$release"manifest.txt # Pull down the manifest
 sed -i 's/  /:/' manifest.txt # Clean it up for easy usage
 while IFS= read -r line; do # Loop over each file and check the hashes match
