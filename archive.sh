@@ -10,7 +10,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Lynx RPC can't respond fast enough to the scripts RPC calls.
 #
 #
-# wget -qO - https://archive.getlynx.io/ | bash
+# wget -qO - https://getlynx.io/archive.sh | bash
 #
 # https://docs.getlynx.io/lynx-administration/bootstraps
 #
