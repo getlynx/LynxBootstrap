@@ -1,10 +1,10 @@
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
-# wget -qO - https://extract.getlynx.io/ | bash
+# wget -qO - https://getlynx.io/extract.sh | bash
 #
 # [with tag argument]
-# wget -qO - https://extract.getlynx.io/ | bash -s v8.0-mainnet
+# wget -qO - https://getlynx.io/extract.sh | bash -s v8.0-mainnet
 #
 # https://docs.getlynx.io/lynx-administration/bootstraps
 #
@@ -16,6 +16,7 @@ release="https://github.com/getlynx/LynxBootstrap/releases/download/$tag/" # Rel
 cd /home/lynx/.lynx || exit
 rm -rf manifest.txt # If previously run, purge old file
 rm -rf bootstrap.dat # If previously run, purge old file
+rm -rf bootstrap.dat.old # If previously run, purge old file
 wget -q "$release"manifest.txt # Pull down the manifest
 sed -i 's/  /:/' manifest.txt # Clean it up for easy usage
 while IFS= read -r line; do # Loop over each file and check the hashes match
