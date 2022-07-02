@@ -1,7 +1,7 @@
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
-# This script should be run as the Lynx user with regard to LynxCI.
+# This script should be run as the Lynx user with regard to LynxCI. It assumes Lynx is already installed.
 #
 # Python 3.9.2
 # https://www.how2shout.com/linux/install-python-3-x-or-2-7-on-debian-11-bullseye-linux/
@@ -10,7 +10,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # Lynx RPC can't respond fast enough to the scripts RPC calls.
 #
 #
-# wget -qO - https://getlynx.io/archive.sh | bash
+# wget -qO - https://archive.getlynx.io/ | bash
 #
 # https://docs.getlynx.io/lynx-administration/bootstraps
 #
@@ -18,7 +18,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 rpcuser="$(/bin/sed -ne 's|[\t]*rpcuser=[\t]*||p' /home/lynx/.lynx/lynx.conf)"
 rpcpassword="$(/bin/sed -ne 's|[\t]*rpcpassword=[\t]*||p' /home/lynx/.lynx/lynx.conf)"
 getCurrentBlock="$(lynx-cli getblockcount)"
-getCurrentBlock=$((getCurrentBlock - 100))
+getCurrentBlock=$((getCurrentBlock - 2500000))
 
 rm -rf /home/lynx/linearize*
 rm -rf /home/lynx/hashlist.txt
@@ -69,4 +69,3 @@ sha256sum "$currentDate"-* > manifest.txt
 rm -rf /home/lynx/linearize*
 rm -rf /home/lynx/hashlist.txt
 rm -rf /home/lynx/bootstrap.dat
-
