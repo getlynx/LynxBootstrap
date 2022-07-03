@@ -3,14 +3,11 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
 # This script should be run as the Lynx user with regard to LynxCI. It assumes Lynx is already installed.
 #
-# Python 3.9.2
-# https://www.how2shout.com/linux/install-python-3-x-or-2-7-on-debian-11-bullseye-linux/
-#
 # Runs best if miner is off. Weird Python socket errors pop up otherwise
 # Lynx RPC can't respond fast enough to the scripts RPC calls.
 #
 #
-# wget -qO - https://archive.getlynx.io/ | bash
+# wget -O - https://raw.githubusercontent.com/getlynx/LynxBootstrap/master/archive.sh | bash
 #
 # https://docs.getlynx.io/lynx-administration/bootstraps
 #
@@ -18,7 +15,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 rpcuser="$(/bin/sed -ne 's|[\t]*rpcuser=[\t]*||p' /home/lynx/.lynx/lynx.conf)"
 rpcpassword="$(/bin/sed -ne 's|[\t]*rpcpassword=[\t]*||p' /home/lynx/.lynx/lynx.conf)"
 getCurrentBlock="$(lynx-cli getblockcount)"
-getCurrentBlock=$((getCurrentBlock - 2500000))
+getCurrentBlock=$((getCurrentBlock - 2900000))
 
 rm -rf /home/lynx/linearize*
 rm -rf /home/lynx/hashlist.txt
