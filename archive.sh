@@ -15,7 +15,7 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 rpcuser="$(/bin/sed -ne 's|[\t]*rpcuser=[\t]*||p' /home/lynx/.lynx/lynx.conf)"
 rpcpassword="$(/bin/sed -ne 's|[\t]*rpcpassword=[\t]*||p' /home/lynx/.lynx/lynx.conf)"
 getCurrentBlock="$(lynx-cli getblockcount)"
-getCurrentBlock=$((getCurrentBlock - 2500000))
+getCurrentBlock=$((getCurrentBlock - 100))
 
 rm -rf /home/lynx/linearize*
 rm -rf /home/lynx/hashlist.txt
