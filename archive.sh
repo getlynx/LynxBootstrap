@@ -60,7 +60,7 @@ sleep 5
 sleep 5
 
 currentDate=$(date +%F)
-tar -cf - --ignore-failed-read --warning=no-file-changed /home/lynx/bootstrap.dat . | gzip | split -b 125M - "$currentDate"-bootstrap.tar.gz.
+tar -cf - --ignore-failed-read --warning=no-file-changed /home/lynx/bootstrap.dat bootstrap.dat | gzip | split -b 125M - "$currentDate"-bootstrap.tar.gz.
 sha256sum "$currentDate"-* > manifest.txt
 
 rm -rf /home/lynx/linearize*
