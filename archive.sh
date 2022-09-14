@@ -27,7 +27,7 @@ wget -q https://raw.githubusercontent.com/getlynx/Lynx/master/contrib/linearize/
 
 # mainnet
 #netmagic=facfb3dc
-#genesis=e7dd146b0867a671abf67d7292e2f62b1ae8854f58ca367547297f0b7f11549
+#genesis=e7dd146b0867a671abf67d7292e2f62b1ae8854f58ca367547297f0b7f115498
 
 # testnet
 #netmagic=cfcfcfcf
