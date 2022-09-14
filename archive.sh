@@ -25,6 +25,14 @@ rm -rf /home/lynx/manifest.txt
 wget -q https://raw.githubusercontent.com/getlynx/Lynx/master/contrib/linearize/linearize-data.py
 wget -q https://raw.githubusercontent.com/getlynx/Lynx/master/contrib/linearize/linearize-hashes.py
 
+# mainnet
+#netmagic=facfb3dc
+#genesis=e7dd146b0867a671abf67d7292e2f62b1ae8854f58ca367547297f0b7f11549
+
+# testnet
+#netmagic=cfcfcfcf
+#genesis=45800e6e490cbbbb4effc770cca79837d3bde51c883109205d179ad8cc891bd3
+
 echo "
 rpcuser=$rpcuser
 rpcpassword=$rpcpassword
