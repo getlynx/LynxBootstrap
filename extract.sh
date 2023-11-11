@@ -8,9 +8,10 @@ PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 # https://docs.getlynx.io/lynx-administration/bootstraps
 #
 
-[ -z "$1" ] && tag="v20.0-mainnet" || tag="$1" # vX.0-mainnet is default.
+[ -z "$1" ] && tag="latest" || tag="$1" # vX.0-mainnet is default.
 
 release="https://github.com/getlynx/LynxBootstrap/releases/download/$tag/" # Release version
+[ "$tag" = "latest" ] && { release="https://github.com/getlynx/LynxBootstrap/releases/latest/download/"; }
 
 cd /home/lynx/.lynx || exit
 rm -rf manifest.txt # If previously run, purge old file
