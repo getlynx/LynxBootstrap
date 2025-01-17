@@ -1,7 +1,7 @@
 #!/bin/bash
 PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 #
-# This script should be run as the Lynx user with regard to LynxCI. It assumes Lynx is already installed.
+# This script should be run as the Lynx user with regard to LynxCI. It assumes Lynx is already installed..
 #
 # Runs best if miner is off. Weird Python socket errors pop up otherwise
 # Lynx RPC can't respond fast enough to the scripts RPC calls.
