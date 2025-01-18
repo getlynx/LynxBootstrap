@@ -12,6 +12,8 @@
 # Documentation: https://docs.getlynx.io/lynx-administration/bootstraps
 # ==============================================================================
 
+export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
+
 set -euo pipefail  # Enable strict error handling
 
 # -----------------------------
@@ -41,7 +43,8 @@ log_step() {
 # -----------------------------
 
 # Get LYNX_HOME path
-LYNX_HOME=$(dirname "$(find ~/ -name ".lynx" -type d)")
+LYNX_DIR=$(find ~/ -name ".lynx" -type d) || fatal "Could not locate .lynx directory"
+LYNX_HOME=$(dirname "$LYNX_DIR")
 
 # Remove trailing slash if present
 LYNX_HOME="${LYNX_HOME%/}"
@@ -52,11 +55,8 @@ readonly LYNX_CONF="$LYNX_HOME/.lynx/lynx.conf"
 readonly BLOCKS_DIR="$LYNX_HOME/.lynx/blocks"
 readonly GITHUB_RAW="https://raw.githubusercontent.com/getlynx/Lynx/master/contrib/linearize"
 
-# Ensure script runs with correct PATH
-export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
-
 log_step "Absolute path to ~/.lynx directory"
-echo "\$ $LYNX_HOME"
+echo "Path: $LYNX_HOME"
 
 # To prevent extra / with the tar command
 cd "$LYNX_HOME"
