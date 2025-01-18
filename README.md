@@ -35,7 +35,7 @@ The script generates the following files:
 ## Important Notes
 
 - Keep both the chunk files and manifest.txt for proper reassembly
-- The script requires the .lynx directory to be in its default location
+- The script expects the .lynx directory to be in its default location
 - The process may take considerable time depending on blockchain size
 - Ensure sufficient disk space is available before running
 
@@ -49,7 +49,7 @@ The script generates the following files:
 ## Common Issues
 
 1. **Permission Denied**: Ensure you have write access to the Lynx directory
-2. **lynx-cli not found**: Make sure Lynx Core is properly installed
+2. **lynx-cli not found**: Make sure Lynx Core is properly installed and running
 3. **Space Issues**: Ensure sufficient disk space for bootstrap creation
 
 ## Contributing
