@@ -110,7 +110,7 @@ cat > "$LYNX_HOME/linearize.cfg" << EOF
 rpcuser=$rpcuser
 rpcpassword=$rpcpassword
 host=127.0.0.1
-port=9332
+port=8332
 max_height=$getCurrentBlock
 netmagic=facfb3dc
 genesis=e7dd146b0867a671abf67d7292e2f62b1ae8854f58ca367547297f0b7f115498
