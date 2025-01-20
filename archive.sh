@@ -54,6 +54,7 @@ readonly LYNX_HOME
 readonly LYNX_CONF="$LYNX_HOME/.lynx/lynx.conf"
 readonly BLOCKS_DIR="$LYNX_HOME/.lynx/blocks"
 readonly GITHUB_RAW="https://raw.githubusercontent.com/getlynx/Lynx/master/contrib/linearize"
+readonly RPCPORT="8332"
 
 log_step "Absolute path to ~/.lynx directory"
 echo "Path: $LYNX_HOME"
@@ -110,7 +111,7 @@ cat > "$LYNX_HOME/linearize.cfg" << EOF
 rpcuser=$rpcuser
 rpcpassword=$rpcpassword
 host=127.0.0.1
-port=8332
+port=$RPCPORT
 max_height=$getCurrentBlock
 netmagic=facfb3dc
 genesis=e7dd146b0867a671abf67d7292e2f62b1ae8854f58ca367547297f0b7f115498
