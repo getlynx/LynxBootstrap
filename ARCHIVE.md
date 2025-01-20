@@ -15,7 +15,7 @@ The script performs the following operations:
 
 - Lynx Core must be installed and fully synced
 - Python (for the linearize scripts)
-- Sufficient disk space for the bootstrap file creation
+- 2GB of free disk space for the bootstrap file creation
 - Staking should be disabled to avoid Python socket errors
 - Write permissions in the Lynx home directory
 
