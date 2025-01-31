@@ -70,12 +70,6 @@ cd "$LYNX_HOME"
 # -----------------------------
 log_step "Performing System Validation"
 
-# Check if Lynx CLI is available and executable
-echo "Checking Lynx CLI availability..."
-if ! lynx-cli -version >/dev/null 2>&1; then
-    fatal "lynx-cli is not available or not executable"
-fi
-
 # Check if Lynx directory and configuration are accessible
 echo "Verifying access to required directories and files..."
 [[ -r "$LYNX_CONF" ]] || fatal "Cannot read Lynx configuration file: $LYNX_CONF"
