@@ -72,8 +72,6 @@ log_step "Performing System Validation"
 
 # Check if Lynx directory and configuration are accessible
 echo "Verifying access to required directories and files..."
-[[ -r "$LYNX_CONF" ]] || fatal "Cannot read Lynx configuration file: $LYNX_CONF"
-[[ -d "$BLOCKS_DIR" ]] || fatal "Cannot access Lynx blocks directory: $BLOCKS_DIR"
 [[ -w "$LYNX_HOME" ]] || fatal "Cannot write to Lynx home directory: $LYNX_HOME"
 
 # -----------------------------
