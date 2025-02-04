@@ -57,7 +57,7 @@ readonly LYNX_CONF="$LYNX_HOME/.lynx/lynx.conf"
 readonly BLOCKS_DIR="$LYNX_HOME/.lynx/blocks"
 readonly RELEASE_URL="https://github.com/getlynx/LynxBootstrap/releases/download"
 readonly RELEASE_TAG="v25.0"
-readonly RELEASE_DATE="2025-02-23"
+readonly RELEASE_DATE="2025-02-03"
 
 log_step "Initializing Bootstrap Process"
 echo "Lynx Home Directory: $LYNX_HOME"
