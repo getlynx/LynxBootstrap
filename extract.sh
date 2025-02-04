@@ -123,7 +123,7 @@ done < "$LYNX_HOME/$RELEASE_DATE-manifest.txt"
 # -----------------------------
 log_step "Extracting Bootstrap Data"
 echo "Combining chunks and extracting to the $LYNX_HOME/.lynx/ directory..."
-cat "$LYNX_HOME"/*bootstrap.tar.gz.* | gunzip | (tar xf - -C "$LYNX_HOME/.lynx/")
+LC_ALL=C cat "$LYNX_HOME"/*bootstrap.tar.gz.* | gunzip | (tar xf - -C "$LYNX_HOME/.lynx/")
 
 # -----------------------------
 # Cleanup and Completion
