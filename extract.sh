@@ -129,7 +129,7 @@ LC_ALL=C cat "$LYNX_HOME"/*bootstrap.tar.gz.* | gunzip | (tar xf - -C "$LYNX_HOM
 # Cleanup and Completion
 # -----------------------------
 log_step "Performing Final Cleanup"
-cleanup
+#cleanup
 
 log_step "Bootstrap Process Complete!"
 echo "Bootstrap extraction completed successfully!"
