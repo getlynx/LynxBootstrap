@@ -111,7 +111,7 @@ while IFS= read -r line; do
         if [ "$(sha256sum "$LYNX_HOME/$file" | awk '{print $1}')" = "$hash" ]; then
             echo "Redownload successful - hash verified"
         else
-            fatal "Bootstrap file corruption detected"
+            fatal "Bootstrap file corruption detected."
         fi
     fi
 done < "$LYNX_HOME/$RELEASE_DATE-manifest.txt"
@@ -125,13 +125,13 @@ echo "Combining chunks and extracting to the $LYNX_HOME/.lynx/ directory..."
 cat "$LYNX_HOME/$RELEASE_DATE-bootstrap.tar.gz."* > reconstructed.tar.gz
 gunzip -c reconstructed.tar.gz > reconstructed.tar
 tar xf reconstructed.tar -C "$LYNX_HOME/.lynx/"
-#rm reconstructed.tar.gz reconstructed.tar
+rm reconstructed.tar.gz reconstructed.tar
 
 # -----------------------------
 # Cleanup and Completion
 # -----------------------------
 log_step "Performing Final Cleanup"
-#cleanup
+cleanup
 
 log_step "Bootstrap Process Complete!"
 echo "Bootstrap extraction completed successfully!"
