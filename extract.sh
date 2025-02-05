@@ -53,11 +53,9 @@ LYNX_HOME=$(dirname "$LYNX_DIR")
 LYNX_HOME="${LYNX_HOME%/}"
 
 # Set dependent paths and configuration
-readonly LYNX_CONF="$LYNX_HOME/.lynx/lynx.conf"
-readonly BLOCKS_DIR="$LYNX_HOME/.lynx/blocks"
 readonly RELEASE_URL="https://github.com/getlynx/LynxBootstrap/releases/download"
 readonly RELEASE_TAG="v25.0"
-readonly RELEASE_DATE="2025-02-03"
+readonly RELEASE_DATE="2025-02-04"
 
 log_step "Initializing Bootstrap Process"
 echo "Lynx Home Directory: $LYNX_HOME"
@@ -123,7 +121,11 @@ done < "$LYNX_HOME/$RELEASE_DATE-manifest.txt"
 # -----------------------------
 log_step "Extracting Bootstrap Data"
 echo "Combining chunks and extracting to the $LYNX_HOME/.lynx/ directory..."
-LC_ALL=C cat "$LYNX_HOME"/*bootstrap.tar.gz.* | gunzip | (tar xf - -C "$LYNX_HOME/.lynx/")
+#LC_ALL=C cat "$LYNX_HOME"/*bootstrap.tar.gz.* | gunzip | (tar xf - -C "$LYNX_HOME/.lynx/")
+cat "$LYNX_HOME/$RELEASE_DATE-bootstrap.tar.gz."* > reconstructed.tar.gz
+gunzip -c reconstructed.tar.gz > reconstructed.tar
+tar xf reconstructed.tar
+#rm reconstructed.tar.gz reconstructed.tar
 
 # -----------------------------
 # Cleanup and Completion
