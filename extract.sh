@@ -124,7 +124,7 @@ echo "Combining chunks and extracting to the $LYNX_HOME/.lynx/ directory..."
 #LC_ALL=C cat "$LYNX_HOME"/*bootstrap.tar.gz.* | gunzip | (tar xf - -C "$LYNX_HOME/.lynx/")
 cat "$LYNX_HOME/$RELEASE_DATE-bootstrap.tar.gz."* > reconstructed.tar.gz
 gunzip -c reconstructed.tar.gz > reconstructed.tar
-tar xf reconstructed.tar
+tar xf reconstructed.tar -C "$LYNX_HOME/.lynx/"
 #rm reconstructed.tar.gz reconstructed.tar
 
 # -----------------------------
