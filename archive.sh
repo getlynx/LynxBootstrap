@@ -92,11 +92,13 @@ echo "Extracting RPC credentials..."
 rpcuser="$(/bin/sed -ne 's|[\t]*main.rpcuser=[\t]*||p' "$LYNX_CONF")"
 rpcpassword="$(/bin/sed -ne 's|[\t]*main.rpcpassword=[\t]*||p' "$LYNX_CONF")"
 
-# Get current block height (minus 100 blocks for safety)
+# Get current block height
 echo "Getting current block height..."
 getCurrentBlock="$(lynx-cli getblockcount)"
-getCurrentBlock=$((getCurrentBlock - 100))
-echo "Using block height: $getCurrentBlock (current height minus 100 blocks)"
+echo "Round down to the nearest thousand."
+# Integer division by 1000 drops the last 3 digits
+getCurrentBlock=$(( getCurrentBlock / 1000 * 1000 ))
+echo "Using block height: $getCurrentBlock"
 
 # Download required Python scripts
 log_step "Downloading required scripts"
@@ -146,13 +148,17 @@ echo "Bootstrap.dat creation complete"
 log_step "Creating compressed archives"
 currentDate=$(date +%F)
 echo "Compressing and splitting bootstrap.dat into 125MB chunks..."
-tar -cf - "bootstrap.dat" | gzip | split -b 125M - "$currentDate-bootstrap.tar.gz."
+#tar -cf - "bootstrap.dat" | gzip | split -b 125M - "$currentDate-bootstrap.tar.gz."
+tar -cf - "bootstrap.dat" > temp_bootstrap.tar
+gzip -c temp_bootstrap.tar > temp_bootstrap.tar.gz
+split -b 125M temp_bootstrap.tar.gz "$currentDate-bootstrap.tar.gz."
+rm temp_bootstrap.tar temp_bootstrap.tar.gz
 echo "Compression complete"
 
 # Generate manifest with checksums
 log_step "Generating manifest"
 echo "Creating SHA256 checksums..."
-sha256sum "$currentDate"-* > "$currentDate"-manifest.txt
+sha256sum "$currentDate"-bootstrap.tar.gz.* > "$currentDate"-manifest.txt
 echo "Manifest saved as: $currentDate-manifest.txt"
 
 # Clean up temporary files
