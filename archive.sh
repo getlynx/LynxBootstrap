@@ -12,6 +12,7 @@
 # Documentation: https://docs.getlynx.io/lynx-administration/bootstraps
 # ==============================================================================
 
+
 export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 
 set -euo pipefail  # Enable strict error handling
