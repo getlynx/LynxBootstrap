@@ -54,8 +54,8 @@ LYNX_HOME="${LYNX_HOME%/}"
 
 # Set dependent paths and configuration
 readonly RELEASE_URL="https://github.com/getlynx/LynxBootstrap/releases/download"
-readonly RELEASE_TAG="v26.0"
-readonly RELEASE_DATE="2025-03-04"
+readonly RELEASE_TAG="v28.0"
+readonly RELEASE_DATE="2025-05-06"
 
 log_step "Initializing Bootstrap Process"
 echo "Lynx Home Directory: $LYNX_HOME"
