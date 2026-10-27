@@ -4,7 +4,7 @@
 # Lynx Bootstrap Archive Creation Script
 # ==============================================================================
 # Purpose: Creates a bootstrap archive for any chain built from the Lynx codebase
-# Usage:   archive.sh <chain>          e.g. archive.sh alioth
+# Usage:   archive.sh [chain]          e.g. archive.sh alioth (default: lynx)
 #          wget -O - <url>/archive.sh | bash -s -- <chain>
 # Requirements:
 #   - The chain's daemon must be running with its data in ~/.<chain>
@@ -45,7 +45,7 @@ declare -A CHAINS=(
 # -----------------------------
 cleanup() {
     echo "Cleaning up temporary files..."
-    local patterns=("linearize.cfg" "linearize-data.py" "linearize-hashes.py" "hashlist.txt" "bootstrap.dat" "temp_bootstrap.tar" "temp_bootstrap.tar.gz")
+    local patterns=("linearize.cfg" "linearize-data.py" "linearize-hashes.py" "linearize-data.log" "hashlist.txt" "bootstrap.dat" "temp_bootstrap.tar" "temp_bootstrap.tar.gz")
     for pattern in "${patterns[@]}"; do
         rm -rf "${WORK_DIR:?}/$pattern"
     done
@@ -63,7 +63,7 @@ log_step() {
 }
 
 usage() {
-    echo "Usage: $0 <chain>" >&2
+    echo "Usage: $0 [chain]   (default: lynx)" >&2
     echo "Supported chains: $(printf '%s\n' "${!CHAINS[@]}" | sort | tr '\n' ' ')" >&2
     exit 1
 }
@@ -91,8 +91,8 @@ print(v[sys.argv[2]] if len(sys.argv) > 2 else v)
 # -----------------------------
 # Configuration
 # -----------------------------
-CHAIN_ID="${1:-}"
-[[ -n "$CHAIN_ID" ]] || usage
+# Lynx is the default, so the original no-argument usage keeps working
+CHAIN_ID="${1:-lynx}"
 [[ -n "${CHAINS[$CHAIN_ID]:-}" ]] || { echo "ERROR: Unknown chain '$CHAIN_ID'" >&2; usage; }
 
 read -r CHAIN_NAME RPCPORT NETMAGIC <<< "${CHAINS[$CHAIN_ID]}"
@@ -171,6 +171,8 @@ fi
 echo "Getting genesis block hash..."
 genesisHash="$(rpc getblockhash 0)"
 echo "Genesis: $genesisHash"
+echo "Checking that the node is synced..."
+[[ "$(rpc getblockchaininfo "" initialblockdownload)" == "False" ]] || fatal "The $CHAIN_NAME node is still in initial block download. Wait until it is fully synced."
 echo "Getting current block height..."
 getCurrentBlock="$(rpc getblockcount)"
 echo "Round down to the nearest thousand."
@@ -222,8 +224,12 @@ echo "Hash list generation complete"
 # Generate bootstrap data
 log_step "Creating bootstrap.dat"
 echo "This may take a considerable amount of time..."
-"$WORK_DIR/linearize-data.py" linearize.cfg
-echo "Bootstrap.dat creation complete"
+"$WORK_DIR/linearize-data.py" linearize.cfg | tee linearize-data.log
+# linearize-data.py exits successfully even when it cannot find every block in
+# the block files, so confirm it wrote all of them (genesis through the target height)
+blocksWritten="$(sed -n 's/^Done (\([0-9]*\) blocks written)$/\1/p' linearize-data.log)"
+[[ "$blocksWritten" == "$(( getCurrentBlock + 1 ))" ]] || fatal "linearize-data.py wrote ${blocksWritten:-0} blocks, expected $(( getCurrentBlock + 1 ))"
+echo "Bootstrap.dat creation complete ($blocksWritten blocks)"
 
 # Create compressed archive split into 125MB chunks
 log_step "Creating compressed archives"
@@ -235,6 +241,8 @@ echo "Compressing and splitting bootstrap.dat into 125MB chunks..."
 #tar -cf - "bootstrap.dat" | gzip | split -b 125M - "$chunkPrefix"
 tar -cf - "bootstrap.dat" > temp_bootstrap.tar
 gzip -c temp_bootstrap.tar > temp_bootstrap.tar.gz
+# Remove chunks from an earlier run today, so a shorter archive cannot pick up stale extra chunks
+rm -f "$chunkPrefix"*
 split -b 125M temp_bootstrap.tar.gz "$chunkPrefix"
 rm temp_bootstrap.tar temp_bootstrap.tar.gz
 echo "Compression complete"

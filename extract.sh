@@ -5,7 +5,7 @@
 # ==============================================================================
 # Purpose: Restores bootstrap.dat for fast synchronization of any chain built
 #          from the Lynx codebase, from the latest release for that chain
-# Usage:   extract.sh <chain> [release-tag]     e.g. extract.sh alioth
+# Usage:   extract.sh [chain] [release-tag]     e.g. extract.sh alioth (default: lynx)
 #          wget -O - <url>/extract.sh | bash -s -- <chain>
 # Requirements:
 #   - The chain's node must be installed, with its data in ~/.<chain>
@@ -58,7 +58,7 @@ log_step() {
 }
 
 usage() {
-    echo "Usage: $0 <chain> [release-tag]" >&2
+    echo "Usage: $0 [chain] [release-tag]   (default chain: lynx)" >&2
     echo "Supported chains: $(printf '%s\n' "${!CHAINS[@]}" | sort | tr '\n' ' ')" >&2
     exit 1
 }
@@ -86,9 +86,9 @@ fetch_verified() {
 # -----------------------------
 # Configuration
 # -----------------------------
-CHAIN_ID="${1:-}"
+# Lynx is the default, so the original no-argument usage keeps working
+CHAIN_ID="${1:-lynx}"
 REQUESTED_TAG="${2:-}"
-[[ -n "$CHAIN_ID" ]] || usage
 [[ -n "${CHAINS[$CHAIN_ID]:-}" ]] || { echo "ERROR: Unknown chain '$CHAIN_ID'" >&2; usage; }
 
 readonly CHAIN_ID REQUESTED_TAG
@@ -129,8 +129,8 @@ rm -f reconstructed.tar.gz reconstructed.tar
 log_step "Finding the latest $CHAIN_NAME release"
 
 # Releases created by archive.sh have a title starting with "[<chain>-mainnet]"
-# and a hidden bootstrap-metadata block in the description. The newest
-# published, non-prerelease match wins, unless a tag was requested.
+# and a hidden bootstrap-metadata block in the description. The published,
+# non-prerelease match with the highest block height wins, unless a tag was requested.
 lookupStatus=0
 releaseInfo="$(python3 -I -c '
 import json, os, re, sys, urllib.request
@@ -140,6 +140,7 @@ headers = {"Accept": "application/vnd.github+json", "User-Agent": "LynxBootstrap
 if os.environ.get("GITHUB_TOKEN"):
     headers["Authorization"] = "Bearer " + os.environ["GITHUB_TOKEN"]
 
+best = None
 for page in range(1, 11):
     url = "%s/repos/%s/releases?per_page=100&page=%d" % (api, repo, page)
     with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as r:
@@ -168,12 +169,14 @@ for page in range(1, 11):
         values = [rel["tag_name"], assets[manifest].rsplit("/", 1)[0], manifest,
                   meta.get("chunk_prefix", ""), meta.get("chunks", ""),
                   meta.get("height", ""), meta.get("terminal_hash", "")]
-        for v in values:
-            if not re.fullmatch(r"[A-Za-z0-9._:/-]+", v):
-                sys.exit("Release %s has missing or invalid bootstrap metadata" % rel["tag_name"])
-        print("\n".join(values))
-        sys.exit(0)
-sys.exit(3)
+        if not all(re.fullmatch(r"[A-Za-z0-9._:/-]+", v) for v in values) or not values[5].isdigit():
+            print("Skipping release %s: missing or invalid bootstrap metadata" % rel["tag_name"], file=sys.stderr)
+            continue
+        if best is None or int(values[5]) > int(best[5]):
+            best = values
+if best is None:
+    sys.exit(3)
+print("\n".join(best))
 ' "$GITHUB_API" "$RELEASE_REPO" "$CHAIN_KEY" "$REQUESTED_TAG")" || lookupStatus=$?
 
 if [[ "$lookupStatus" -eq 0 ]]; then
@@ -206,7 +209,8 @@ log_step "Downloading Manifest File"
 echo "Fetching manifest from: $DOWNLOAD_BASE/$MANIFEST"
 wget -q -O "$MANIFEST" "$DOWNLOAD_BASE/$MANIFEST" || fatal "Could not download $MANIFEST"
 
-manifestCount=$(grep -c . "$MANIFEST")
+manifestCount=$(grep -c . "$MANIFEST" || true)
+[[ "$manifestCount" -gt 0 ]] || fatal "Manifest $MANIFEST is empty"
 if [[ -n "$CHUNK_COUNT" && "$manifestCount" -ne "$CHUNK_COUNT" ]]; then
     fatal "Manifest lists $manifestCount chunks, release metadata says $CHUNK_COUNT"
 fi

@@ -9,7 +9,7 @@ For more background, see the [Lynx Bootstrap Documentation](https://docs.getlynx
 
 ## Supported chains
 
-Both scripts take the chain ID as their first argument. Chain settings come from `src/kernel/chainparams.cpp` in the Lynx repo.
+Both scripts take the chain ID as their first argument. Without one, they default to `lynx`, so older instructions that run them without an argument still work. Chain settings come from `src/kernel/chainparams.cpp` in the Lynx repo.
 
 | Chain ID | Name | RPC port | Network magic |
 |---|---|---|---|
@@ -44,7 +44,7 @@ wget -O - https://raw.githubusercontent.com/getlynx/LynxBootstrap/master/extract
 
 ### How it works
 
-1. **Finds the release.** It asks the GitHub API for this repo's releases and picks the newest published, non-prerelease release whose title starts with `[<chain>-mainnet]`. It then reads the release's hidden metadata block (see [Release format](#release-format)) to get the manifest name, chunk names, chunk count, block height and terminal block hash.
+1. **Finds the release.** It asks the GitHub API for this repo's releases and picks the published, non-prerelease release with the highest block height whose title starts with `[<chain>-mainnet]`. Releases with missing or damaged metadata are skipped. It then reads the release's hidden metadata block (see [Release format](#release-format)) to get the manifest name, chunk names, chunk count, block height and terminal block hash.
 2. **Downloads and verifies.** It downloads the manifest, then each chunk listed in it, and checks every chunk's SHA256 hash. A chunk with the wrong hash is downloaded once more. If it is still wrong, the script stops. Chunks already downloaded with the right hash are reused, so an interrupted run can be resumed.
 3. **Extracts.** It joins the chunks in manifest order, decompresses them, confirms the archive holds only `bootstrap.dat`, and extracts that file into `~/.<chain>/`.
 4. **Cleans up.** It removes its working directory, `~/<chain>-restore/`.
@@ -96,8 +96,8 @@ At the end, the script prints a suggested release tag, the release title, and th
 
 1. **Validates the setup.** It checks that the chain ID is one of the 12 supported chains and that the data directory, config file and blocks directory exist. It then reads the first 4 bytes of `blocks/blk00000.dat` and compares them with the chain's network magic. That catches a wrong data directory or a mistyped chain ID before anything is exported.
 2. **Connects to the node.** It reads `rpcuser` and `rpcpassword` from the config file (with or without a `main.` prefix), or falls back to the node's `.cookie` file. All node calls go over JSON-RPC to `127.0.0.1` on the chain's RPC port, so no chain-specific CLI binary is needed.
-3. **Chooses the height.** It reads the genesis block hash and current block count from the node and rounds the height down to the nearest thousand.
-4. **Exports the blocks.** It downloads the export scripts from [`linearize/`](linearize/) in this repo. `linearize-hashes.py` asks the node for every block hash from genesis to the chosen height. `linearize-data.py` then reads the raw block files and writes those blocks, in order, to `bootstrap.dat`.
+3. **Chooses the height.** It stops if the node is still in initial block download. Otherwise it reads the genesis block hash and current block count from the node and rounds the height down to the nearest thousand.
+4. **Exports the blocks.** It downloads the export scripts from [`linearize/`](linearize/) in this repo. `linearize-hashes.py` asks the node for every block hash from genesis to the chosen height. `linearize-data.py` then reads the raw block files and writes those blocks, in order, to `bootstrap.dat`. The script then checks that every block from genesis to the chosen height was written, because `linearize-data.py` does not report an error when blocks are missing. Exporting InfiniLooP takes longer than other chains, roughly 25 extra minutes, because each of its legacy blocks is hashed with scrypt.
 5. **Compresses and splits.** It compresses `bootstrap.dat` with tar and gzip, splits it into 125MB chunks, and writes the SHA256 manifest.
 6. **Verifies the result.** It takes the height and terminal block hash from the list of exported hashes and checks both against the node. It stops if they don't match, so the release notes always describe what is really in the archive.
 7. **Writes the release notes.** The notes include the chain, the block range, the genesis and terminal block hashes, the terminal block time, the node version, sizes, usage instructions and the chunk checksums.
