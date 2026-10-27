@@ -7,7 +7,7 @@
 # Requirements:
 #   - Lynx must be installed
 #   - Staking should be disabled to avoid Python socket errors
-#   - Creates 128MB chunks of the bootstrap file
+#   - Creates 125MB chunks of the bootstrap file
 #   - Be sure to save the manifest.txt and chunk files for reassembly
 # Documentation: https://docs.getlynx.io/lynx-administration/bootstraps
 # ==============================================================================
@@ -55,6 +55,13 @@ readonly LYNX_CONF="$LYNX_HOME/.lynx/lynx.conf"
 readonly BLOCKS_DIR="$LYNX_HOME/.lynx/blocks"
 readonly GITHUB_RAW="https://raw.githubusercontent.com/getlynx/Lynx/master/contrib/linearize"
 readonly RPCPORT="8332"
+
+# Chain identity, used in the release title, tag and notes.
+# CHAIN_ID and NETWORK form the key ("lynx-mainnet") that extraction tools match on.
+readonly CHAIN_NAME="Lynx"
+readonly CHAIN_ID="lynx"
+readonly NETWORK="mainnet"
+readonly CHAIN_KEY="$CHAIN_ID-$NETWORK"
 
 log_step "Absolute path to ~/.lynx directory"
 echo "Path: $LYNX_HOME"
@@ -161,6 +168,102 @@ echo "Creating SHA256 checksums..."
 sha256sum "$currentDate"-bootstrap.tar.gz.* > "$currentDate"-manifest.txt
 echo "Manifest saved as: $currentDate-manifest.txt"
 
+# Generate GitHub release notes
+log_step "Generating release notes"
+echo "Collecting release details..."
+releaseNotes="$currentDate-release-notes.md"
+# hashlist.txt holds one hash per exported block, starting at genesis (height 0),
+# so its last line is the terminal block and its line count is height + 1
+archivedHeight=$(( $(wc -l < hashlist.txt) - 1 ))
+terminalHash="$(tail -n 1 hashlist.txt)"
+echo "Verifying archived block range against the node..."
+[[ "$archivedHeight" -eq "$getCurrentBlock" ]] || fatal "Archive ends at height $archivedHeight, expected $getCurrentBlock"
+[[ "$terminalHash" == "$(lynx-cli getblockhash "$archivedHeight")" ]] || fatal "Terminal block hash $terminalHash does not match node at height $archivedHeight"
+echo "Verified: height $archivedHeight, hash $terminalHash"
+formattedHeight=$(echo "$archivedHeight" | sed ':a;s/\B[0-9]\{3\}\>/,&/;ta')
+terminalTime="$(lynx-cli getblockheader "$terminalHash" | grep '"time"' | tr -dc '0-9')"
+terminalTimeUtc="$(date -u -d "@$terminalTime" '+%Y-%m-%d %H:%M:%S UTC')"
+lynxVersion="$(lynx-cli -version | head -n 1)"
+chunkCount=$(ls "$currentDate"-bootstrap.tar.gz.* | wc -l)
+archiveSize=$(cat "$currentDate"-bootstrap.tar.gz.* | wc -c | numfmt --to=iec --suffix=B)
+datSize=$(stat -c %s bootstrap.dat | numfmt --to=iec --suffix=B)
+releaseTitle="[$CHAIN_KEY] $CHAIN_NAME Bootstrap Archive - Block Height $formattedHeight"
+releaseTag="$CHAIN_KEY-$archivedHeight"
+
+{
+cat << EOF
+<!-- bootstrap-metadata
+chain=$CHAIN_ID
+network=$NETWORK
+height=$archivedHeight
+terminal_hash=$terminalHash
+date=$currentDate
+manifest=$currentDate-manifest.txt
+chunk_prefix=$currentDate-bootstrap.tar.gz.
+chunks=$chunkCount
+-->
+> **Chain: $CHAIN_NAME ($NETWORK)**. This archive only works with $CHAIN_NAME $NETWORK nodes. Do not load it into a node for any other chain.
+
+This release contains the $CHAIN_NAME $NETWORK blockchain as a bootstrap archive, split into $chunkCount chunks. Loading it lets a new node import the chain from a local file instead of downloading every block from peers.
+
+## Details
+
+| | |
+|---|---|
+| **Chain** | $CHAIN_NAME (\`$CHAIN_ID\`) |
+| **Network** | $NETWORK |
+| **Height range** | Block 0 (genesis) through $formattedHeight |
+| **Terminal block hash** | \`$terminalHash\` |
+| **Terminal block time** | $terminalTimeUtc |
+| **Created** | $currentDate with $lynxVersion |
+| **Format** | gzipped tarball of \`bootstrap.dat\`, split into 125MB chunks |
+| **Chunks** | $chunkCount files, $archiveSize total |
+| **Uncompressed size** | $datSize (\`bootstrap.dat\`) |
+| **Verification** | SHA256 manifest (\`$currentDate-manifest.txt\`) |
+
+## Required files
+
+Download **all** of these. The archive cannot be reassembled if any chunk is missing.
+
+- Bootstrap chunks: \`$currentDate-bootstrap.tar.gz.*\` ($chunkCount files)
+- Manifest: \`$currentDate-manifest.txt\`
+
+## Usage
+
+**Automated:** run [\`extract.sh\`](https://github.com/getlynx/LynxBootstrap/blob/master/extract.sh) from this repository. It downloads, verifies and extracts the archive into \`~/.lynx/\`.
+
+**Manual:** put all chunks and the manifest in one directory, then:
+
+\`\`\`bash
+# 1. Verify every chunk (each line should end in "OK")
+sha256sum -c $currentDate-manifest.txt
+
+# 2. Reassemble and extract bootstrap.dat into the Lynx data directory
+cat $currentDate-bootstrap.tar.gz.* | tar -xzf - -C ~/.lynx/
+
+# 3. Restart Lynx. It imports bootstrap.dat on startup, then syncs the remaining blocks from peers.
+\`\`\`
+
+After the import finishes, check that \`lynx-cli getblockhash $archivedHeight\` returns \`$terminalHash\`.
+
+## Documentation
+
+For detailed instructions and usage guidelines, see the [Lynx Bootstrap Documentation](https://docs.getlynx.io/lynx-administration/bootstraps).
+
+<details>
+<summary>Chunk checksums (SHA256)</summary>
+
+\`\`\`
+EOF
+cat "$currentDate"-manifest.txt
+cat << EOF
+\`\`\`
+
+</details>
+EOF
+} > "$releaseNotes"
+echo "Release notes saved as: $releaseNotes"
+
 # Clean up temporary files
 log_step "Finalizing"
 cleanup
@@ -170,5 +273,22 @@ echo "Bootstrap archive creation completed successfully!"
 echo "Output files:"
 echo "- Bootstrap chunks: $currentDate-bootstrap.tar.gz.*"
 echo "- Manifest: $currentDate-manifest.txt"
+echo "- Release notes: $releaseNotes"
 echo ""
 echo "Note: Be sure to keep the manifest file for proper reassembly of the bootstrap archive."
+
+log_step "GitHub Release"
+echo "Tag (suggested):"
+echo ""
+echo "$releaseTag"
+echo ""
+echo "Title (copy into the release title field):"
+echo ""
+echo "$releaseTitle"
+echo ""
+echo "Description (copy everything between the markers into the release description):"
+echo "----------------------------- BEGIN -----------------------------"
+cat "$releaseNotes"
+echo "------------------------------ END ------------------------------"
+echo ""
+echo "Then set RELEASE_DATE=\"$currentDate\" (and RELEASE_TAG, if it changed) in extract.sh."
