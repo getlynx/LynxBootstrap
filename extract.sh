@@ -3,12 +3,16 @@
 # ==============================================================================
 # Lynx Bootstrap Archive Extraction Script
 # ==============================================================================
-# Purpose: Creates a bootstrap.dat file for fast Lynx blockchain synchronization
+# Purpose: Restores bootstrap.dat for fast synchronization of any chain built
+#          from the Lynx codebase, from the latest release for that chain
+# Usage:   extract.sh <chain> [release-tag]     e.g. extract.sh alioth
+#          wget -O - <url>/extract.sh | bash -s -- <chain>
 # Requirements:
-#   - Lynx must be installed
-#   - Staking should be disabled to avoid Python socket errors
-#   - Downloads latest bootstrap chunks, verifies and recombines
-#   - Simply restart Lynx upon script completion to begin reindex process
+#   - The chain's node must be installed, with its data in ~/.<chain>
+#     (override with DATA_DIR=/path/to/datadir)
+#   - python3, wget, sha256sum and tar must be installed
+#   - Downloads the latest bootstrap chunks, verifies and recombines them
+#   - Simply restart the node upon script completion to begin the import
 # Documentation: https://docs.getlynx.io/lynx-administration/bootstraps
 # ==============================================================================
 
@@ -17,17 +21,29 @@ export PATH=/usr/local/sbin:/usr/local/bin:/usr/sbin:/usr/bin:/sbin:/bin
 set -euo pipefail  # Enable strict error handling
 
 # -----------------------------
+# Supported Chains
+# -----------------------------
+declare -A CHAINS=(
+    [alioth]="Alioth"
+    [borrelly]="Borrelly"
+    [cassiopeia]="Cassiopeia"
+    [delphinus]="Delphinus"
+    [digitalcoin]="Digitalcoin"
+    [enceladus]="Enceladus"
+    [fenrir]="Fenrir"
+    [galatea]="Galatea"
+    [halley]="Halley"
+    [indus]="Indus"
+    [infiniloop]="InfiniLooP"
+    [lynx]="Lynx"
+)
+
+# -----------------------------
 # Helper Functions
 # -----------------------------
 cleanup() {
-    echo "Cleaning up temporary files..."
-    local patterns=("$RELEASE_DATE-manifest.txt" "bootstrap.dat" "bootstrap.dat.old")
-    for pattern in "${patterns[@]}"; do
-		echo "Removing legacy file ${LYNX_HOME:?}/$pattern"
-        rm -rf "${LYNX_HOME:?}/$pattern"
-    done
-	echo "Removing legacy file $LYNX_HOME/*bootstrap.tar.gz.*"
-	rm -rf "$LYNX_HOME"/*bootstrap.tar.gz.*
+    echo "Removing working directory $WORK_DIR..."
+    rm -rf "${WORK_DIR:?}"
 }
 
 fatal() {
@@ -41,91 +57,180 @@ log_step() {
     echo "======================================"
 }
 
+usage() {
+    echo "Usage: $0 <chain> [release-tag]" >&2
+    echo "Supported chains: $(printf '%s\n' "${!CHAINS[@]}" | sort | tr '\n' ' ')" >&2
+    exit 1
+}
+
+# Download one chunk and check it against its manifest hash, retrying once
+fetch_verified() {
+    local file="$1" hash="$2"
+    if [[ -f "$file" && "$(sha256sum "$file" | awk '{print $1}')" == "$hash" ]]; then
+        echo "Already downloaded and verified: $file"
+        return
+    fi
+    for attempt in 1 2; do
+        echo "Downloading: $file (attempt $attempt)"
+        rm -f "$file"
+        wget -q -O "$file" "$DOWNLOAD_BASE/$file" || continue
+        if [[ "$(sha256sum "$file" | awk '{print $1}')" == "$hash" ]]; then
+            echo "Hash verification successful: $file"
+            return
+        fi
+        echo "Hash mismatch: $file"
+    done
+    fatal "Bootstrap file corruption detected: $file could not be downloaded with the expected hash"
+}
+
 # -----------------------------
 # Configuration
 # -----------------------------
+CHAIN_ID="${1:-}"
+REQUESTED_TAG="${2:-}"
+[[ -n "$CHAIN_ID" ]] || usage
+[[ -n "${CHAINS[$CHAIN_ID]:-}" ]] || { echo "ERROR: Unknown chain '$CHAIN_ID'" >&2; usage; }
 
-# Get LYNX_HOME path
-LYNX_DIR=$(find ~/ -name ".lynx" -type d) || fatal "Could not locate .lynx directory"
-LYNX_HOME=$(dirname "$LYNX_DIR")
+readonly CHAIN_ID REQUESTED_TAG
+readonly CHAIN_NAME="${CHAINS[$CHAIN_ID]}"
+readonly NETWORK="mainnet"
+readonly CHAIN_KEY="$CHAIN_ID-$NETWORK"
 
-# Remove trailing slash if present
-LYNX_HOME="${LYNX_HOME%/}"
+DATA_DIR="${DATA_DIR:-$HOME/.$CHAIN_ID}"
+readonly DATA_DIR="${DATA_DIR%/}"
+readonly WORK_DIR="$HOME/$CHAIN_ID-restore"
+readonly RELEASE_REPO="getlynx/LynxBootstrap"
+readonly GITHUB_API="${GITHUB_API:-https://api.github.com}"
 
-# Set dependent paths and configuration
-readonly RELEASE_URL="https://github.com/getlynx/LynxBootstrap/releases/download"
-readonly RELEASE_TAG="v28.0"
-readonly RELEASE_DATE="2025-05-06"
-
-log_step "Initializing Bootstrap Process"
-echo "Lynx Home Directory: $LYNX_HOME"
-
-# Change to Lynx home directory for consistent operations
-cd "$LYNX_HOME"
+log_step "Restoring $CHAIN_NAME ($CHAIN_KEY) bootstrap"
+echo "Data directory: $DATA_DIR"
+echo "Working directory: $WORK_DIR"
 
 # -----------------------------
 # Validation
 # -----------------------------
 log_step "Performing System Validation"
 
-# Check if Lynx directory and configuration are accessible
+echo "Checking required tools..."
+for tool in python3 wget sha256sum tar; do
+    command -v "$tool" >/dev/null 2>&1 || fatal "$tool is not installed"
+done
+
 echo "Verifying access to required directories and files..."
-[[ -w "$LYNX_HOME" ]] || fatal "Cannot write to Lynx home directory: $LYNX_HOME"
+[[ -d "$DATA_DIR" ]] || fatal "$CHAIN_NAME data directory not found: $DATA_DIR (is the $CHAIN_NAME node installed?)"
+[[ -w "$DATA_DIR" ]] || fatal "Cannot write to $CHAIN_NAME data directory: $DATA_DIR"
+mkdir -p "$WORK_DIR" || fatal "Cannot create working directory: $WORK_DIR"
+cd "$WORK_DIR"
+rm -f reconstructed.tar.gz reconstructed.tar
+
+# -----------------------------
+# Release Lookup
+# -----------------------------
+log_step "Finding the latest $CHAIN_NAME release"
+
+# Releases created by archive.sh have a title starting with "[<chain>-mainnet]"
+# and a hidden bootstrap-metadata block in the description. The newest
+# published, non-prerelease match wins, unless a tag was requested.
+lookupStatus=0
+releaseInfo="$(python3 -I -c '
+import json, os, re, sys, urllib.request
+
+api, repo, key, tag = sys.argv[1:5]
+headers = {"Accept": "application/vnd.github+json", "User-Agent": "LynxBootstrap-extract"}
+if os.environ.get("GITHUB_TOKEN"):
+    headers["Authorization"] = "Bearer " + os.environ["GITHUB_TOKEN"]
+
+for page in range(1, 11):
+    url = "%s/repos/%s/releases?per_page=100&page=%d" % (api, repo, page)
+    with urllib.request.urlopen(urllib.request.Request(url, headers=headers), timeout=30) as r:
+        releases = json.load(r)
+    if not releases:
+        break
+    for rel in releases:
+        if rel.get("draft") or rel.get("prerelease"):
+            continue
+        if not (rel.get("name") or "").startswith("[%s]" % key):
+            continue
+        if tag and rel["tag_name"] != tag:
+            continue
+        m = re.search(r"<!-- bootstrap-metadata\s*\n(.*?)-->", rel.get("body") or "", re.S)
+        if not m:
+            continue
+        meta = {}
+        for line in m.group(1).splitlines():
+            if "=" in line:
+                k, v = line.split("=", 1)
+                meta[k.strip()] = v.strip()
+        assets = {a["name"]: a["browser_download_url"] for a in rel.get("assets", [])}
+        manifest = meta.get("manifest", "")
+        if manifest not in assets:
+            continue
+        values = [rel["tag_name"], assets[manifest].rsplit("/", 1)[0], manifest,
+                  meta.get("chunk_prefix", ""), meta.get("chunks", ""),
+                  meta.get("height", ""), meta.get("terminal_hash", "")]
+        for v in values:
+            if not re.fullmatch(r"[A-Za-z0-9._:/-]+", v):
+                sys.exit("Release %s has missing or invalid bootstrap metadata" % rel["tag_name"])
+        print("\n".join(values))
+        sys.exit(0)
+sys.exit(3)
+' "$GITHUB_API" "$RELEASE_REPO" "$CHAIN_KEY" "$REQUESTED_TAG")" || lookupStatus=$?
+
+if [[ "$lookupStatus" -eq 0 ]]; then
+    { read -r RELEASE_TAG; read -r DOWNLOAD_BASE; read -r MANIFEST; read -r CHUNK_PREFIX
+      read -r CHUNK_COUNT; read -r HEIGHT; read -r TERMINAL_HASH; } <<< "$releaseInfo"
+elif [[ "$lookupStatus" -eq 3 && "$CHAIN_ID" == "lynx" && -z "$REQUESTED_TAG" ]]; then
+    # The Lynx release published before archive.sh added chain metadata
+    echo "No chain-tagged Lynx release found, using the legacy v28.0-mainnet release"
+    RELEASE_TAG="v28.0-mainnet"
+    DOWNLOAD_BASE="https://github.com/$RELEASE_REPO/releases/download/$RELEASE_TAG"
+    MANIFEST="2025-05-06-manifest.txt"
+    CHUNK_PREFIX="2025-05-06-bootstrap.tar.gz."
+    CHUNK_COUNT=""
+    HEIGHT=""
+    TERMINAL_HASH=""
+elif [[ "$lookupStatus" -eq 3 ]]; then
+    fatal "No $CHAIN_NAME release found in $RELEASE_REPO${REQUESTED_TAG:+ with tag $REQUESTED_TAG}"
+else
+    fatal "Could not look up releases from $GITHUB_API (rate limited? set GITHUB_TOKEN to raise the limit)"
+fi
+readonly RELEASE_TAG DOWNLOAD_BASE MANIFEST CHUNK_PREFIX CHUNK_COUNT HEIGHT TERMINAL_HASH
+
+echo "Release: $RELEASE_TAG"
+[[ -z "$HEIGHT" ]] || echo "Block height: $HEIGHT"
 
 # -----------------------------
 # Bootstrap Download and Verification
 # -----------------------------
-log_step "Starting Bootstrap Download Process"
-
-# Clean up any previous bootstrap files
-cleanup
-
-# Download manifest file
 log_step "Downloading Manifest File"
-echo "Fetching manifest from: $RELEASE_URL/$RELEASE_TAG-mainnet/$RELEASE_DATE-manifest.txt"
-wget -q -P "$LYNX_HOME/" "$RELEASE_URL/$RELEASE_TAG-mainnet/$RELEASE_DATE-manifest.txt"
+echo "Fetching manifest from: $DOWNLOAD_BASE/$MANIFEST"
+wget -q -O "$MANIFEST" "$DOWNLOAD_BASE/$MANIFEST" || fatal "Could not download $MANIFEST"
 
-# Process manifest and download chunks
-log_step "Processing Bootstrap Chunks"
-sed -i 's/  /:/' "$LYNX_HOME/$RELEASE_DATE-manifest.txt"
+manifestCount=$(grep -c . "$MANIFEST")
+if [[ -n "$CHUNK_COUNT" && "$manifestCount" -ne "$CHUNK_COUNT" ]]; then
+    fatal "Manifest lists $manifestCount chunks, release metadata says $CHUNK_COUNT"
+fi
 
-while IFS= read -r line; do
-    hash=$(echo "$line" | cut -d ":" -f 1)
-    file=$(echo "$line" | cut -d ":" -f 2)
-
-    log_step "Processing: $file"
-
-    # Download file if not present
-    if [ ! -f "$LYNX_HOME/$file" ]; then
-        echo "Downloading: $file"
-        wget -q -P "$LYNX_HOME/" "$RELEASE_URL/$RELEASE_TAG-mainnet/$file"
-    fi
-
-    # Verify hash
-    if [ "$(sha256sum "$LYNX_HOME/$file" | awk '{print $1}')" = "$hash" ]; then
-        echo "Hash verification successful: $file"
-    else
-        echo "Hash mismatch - attempting redownload"
-        rm -rf "$file"
-        wget -q -P "$LYNX_HOME/" "$RELEASE_URL/$RELEASE_TAG-mainnet/$file"
-        if [ "$(sha256sum "$LYNX_HOME/$file" | awk '{print $1}')" = "$hash" ]; then
-            echo "Redownload successful - hash verified"
-        else
-            fatal "Bootstrap file corruption detected."
-        fi
-    fi
-done < "$LYNX_HOME/$RELEASE_DATE-manifest.txt"
+log_step "Processing $manifestCount Bootstrap Chunks"
+while read -r hash file; do
+    [[ -n "$hash" ]] || continue
+    # Only accept plain chunk file names, so the manifest cannot write outside the working directory
+    [[ "$file" == "$CHUNK_PREFIX"* && "$file" =~ ^[A-Za-z0-9._-]+$ ]] || fatal "Unexpected file in manifest: $file"
+    [[ "$hash" =~ ^[0-9a-f]{64}$ ]] || fatal "Invalid hash in manifest for $file"
+    fetch_verified "$file" "$hash"
+done < "$MANIFEST"
 
 # -----------------------------
 # Bootstrap Extraction
 # -----------------------------
 log_step "Extracting Bootstrap Data"
-echo "Combining chunks and extracting to the $LYNX_HOME/.lynx/ directory..."
-#LC_ALL=C cat "$LYNX_HOME"/*bootstrap.tar.gz.* | gunzip | (tar xf - -C "$LYNX_HOME/.lynx/")
-cat "$LYNX_HOME/$RELEASE_DATE-bootstrap.tar.gz."* > reconstructed.tar.gz
+echo "Combining chunks..."
+#LC_ALL=C cat "$CHUNK_PREFIX"* | gunzip | (tar xf - -C "$DATA_DIR/")
+awk '{print $2}' "$MANIFEST" | xargs cat > reconstructed.tar.gz
 gunzip -c reconstructed.tar.gz > reconstructed.tar
-tar xf reconstructed.tar -C "$LYNX_HOME/.lynx/"
-rm reconstructed.tar.gz reconstructed.tar
+[[ "$(tar tf reconstructed.tar)" == "bootstrap.dat" ]] || fatal "Archive does not contain exactly one bootstrap.dat"
+echo "Extracting bootstrap.dat to the $DATA_DIR/ directory..."
+tar xf reconstructed.tar -C "$DATA_DIR/"
 
 # -----------------------------
 # Cleanup and Completion
@@ -136,6 +241,9 @@ cleanup
 log_step "Bootstrap Process Complete!"
 echo "Bootstrap extraction completed successfully!"
 echo "Output files:"
-echo "- Bootstrap: $LYNX_HOME/bootstrap.dat"
+echo "- Bootstrap: $DATA_DIR/bootstrap.dat (from release $RELEASE_TAG)"
 echo ""
-echo "Note: Restart the Lynx daemon to begin the reindexing process."
+echo "Note: Restart the $CHAIN_NAME daemon to begin the import. It renames bootstrap.dat to bootstrap.dat.old when done."
+if [[ -n "$HEIGHT" ]]; then
+    echo "After the import, block $HEIGHT should have the hash $TERMINAL_HASH"
+fi
